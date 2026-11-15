@@ -43,7 +43,7 @@ RF_GRID = {"max_depth": [3, 5, None], "min_samples_leaf": [20, 50, 100]}
 REPORT_WIDTH = 72
 
 
-# ------------------------- Part 1.1: Ingestion ---------------------------
+# ------------------------- Data Ingestion ---------------------------
 def load_data(path: Path) -> pd.DataFrame:
     """Read the price CSV and return it indexed by date."""
     return pd.read_csv(path, index_col="Date", parse_dates=True)
@@ -70,13 +70,13 @@ def clean_prices(prices: pd.DataFrame) -> pd.DataFrame:
     return prices[(prices[PRICE_COLUMNS] > 0).all(axis=1)]
 
 
-# ------------------------- Part 1.2: Log returns -------------------------
+# ------------------------- Log returns -------------------------
 def log_returns(prices: pd.Series) -> pd.Series:
     """Daily log returns r_t = ln(P_t) - ln(P_t-1); drops the first NaN."""
     return np.log(prices).diff().dropna()
 
 
-# ------------------------- Part 1.3: Moments -----------------------------
+# ------------------------- Moments -----------------------------
 def summary_stats(returns: pd.Series,
                   periods: int = DAYS_PER_YEAR) -> pd.Series:
     """Moments of daily returns, annualized with the 365-day convention."""
@@ -93,7 +93,7 @@ def summary_stats(returns: pd.Series,
     })
 
 
-# ------------------------- Part 1.4: Stationarity ------------------------
+# ------------------------- Stationarity ------------------------
 def adf_test(series: pd.Series, name: str) -> pd.Series:
     """Augmented Dickey-Fuller test; H0: unit root (non-stationary)."""
     stat, pvalue, lags, _, critical, _ = adfuller(series, autolag="AIC")
@@ -105,7 +105,7 @@ def adf_test(series: pd.Series, name: str) -> pd.Series:
                       "Critical 10%": critical["10%"]}, name=name)
 
 
-# ------------------------- Part 1.5: Visualizations ------------------
+# ------------------------- Visualizations ------------------
 def save_figure(fig: plt.Figure, name: str, folder: Path = FIGURE_DIR):
     """Saves figure as PNG"""
     folder.mkdir(parents=True, exist_ok=True)
@@ -157,7 +157,7 @@ def plot_distribution(returns: pd.Series):
     save_figure(fig, "return_distribution.png")
 
 
-# ------------------------- Part 2.2: Order identification -----------
+# ------------------------- Order identification -----------
 def plot_correlograms(returns: pd.Series, lags: int = MAX_LAGS):
     """ACF and PACF of returns with the 95% band around zero"""
     fig, axes = plt.subplots(2, 1, figsize=(10, 7))
@@ -179,7 +179,7 @@ def arima_grid_search(returns: pd.Series,
     return pd.DataFrame(rows)
 
 
-# ------------------------- Part 2.3: Estimation and diagnostics ---------
+# ------------------------- Estimation and diagnostics ---------
 def fit_arima(returns: pd.Series, order: tuple):
     """Fit ARIMA(p, d, q) to the returns and return the results object."""
     return ARIMA(returns, order=order).fit()
@@ -199,7 +199,7 @@ def residual_diagnostics(result, order: tuple,
     return acorr_ljungbox(resid, lags=lags, model_df=order[0] + order[2])
 
 
-# ------------------------- Part 2.4: Forecasting -------------------------
+# ------------------------- Forecasting -------------------------
 def forecast_prices(result, last_price: float,
                     steps: int = FORECAST_DAYS) -> pd.DataFrame:
     """Return forecast with 95% bands, compounded into price paths."""
@@ -236,7 +236,7 @@ def plot_forecast(returns: pd.Series, prices: pd.Series, fc: pd.DataFrame,
     save_figure(fig, "arima_forecast.png")
 
 
-# ------------------------- Part 3.1: Feature engineering ----------------
+# ------------------------- Feature engineering ----------------
 def build_features(prices: pd.DataFrame,
                    returns: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
     """Leak-free features X_t (known at day t) and target y_t = r_t+1."""
@@ -256,7 +256,7 @@ def build_features(prices: pd.DataFrame,
     return data.drop(columns="target"), data["target"]
 
 
-# ------------------------- Part 3.2-3.3: Split and scale ----------------
+# ------------------------- Split and scale ----------------
 def split_and_scale(X: pd.DataFrame, y: pd.Series,
                     train_fraction: float = TRAIN_FRACTION) -> tuple:
     """Chronological split; StandardScaler fitted on the train set only."""
@@ -270,7 +270,7 @@ def split_and_scale(X: pd.DataFrame, y: pd.Series,
     return X_train, X_test, y_train, y_test
 
 
-# ------------------------- Part 3.4: Model and evaluation ---------------
+# ------------------------- Model and evaluation ---------------
 def evaluate(y_true: pd.Series, y_pred: np.ndarray, name: str) -> pd.Series:
     """MSE, RMSE, MAE, R^2 and directional hit rate for one prediction."""
     mse = mean_squared_error(y_true, y_pred)
@@ -284,7 +284,7 @@ def evaluate(y_true: pd.Series, y_pred: np.ndarray, name: str) -> pd.Series:
                       "Hit rate": hit_rate}, name=name)
 
 
-# ------------------------- Bonus A: Advanced features -------------------
+# ------------------------- Advanced features -------------------
 def garman_klass(prices: pd.DataFrame) -> pd.Series:
     """Daily Garman-Klass variance estimate from open, high, low, close."""
     log_hl = np.log(prices["High"] / prices["Low"])
@@ -300,7 +300,7 @@ def rsi(close: pd.Series, window: int = RSI_WINDOW) -> pd.Series:
     return 100 - 100 / (1 + gain / loss)
 
 
-# ------------------------- Bonus B: Random forest -----------------------
+# ------------------------- Random forest -----------------------
 def tune_random_forest(X_train: pd.DataFrame,
                        y_train: pd.Series) -> GridSearchCV:
     """Random forest tuned by grid search with 5-fold TimeSeriesSplit."""
@@ -323,7 +323,7 @@ def plot_importances(model, columns: pd.Index) -> pd.Series:
     return importances
 
 
-# ------------------------- Bonus C: Direction classification ------------
+# ------------------------- Direction classification ------------
 def classify_direction(X_train: pd.DataFrame, X_test: pd.DataFrame,
                        y_train: pd.Series, y_test: pd.Series) -> pd.Series:
     """Logistic regression on up (1) / down (0) days; test-set metrics."""
